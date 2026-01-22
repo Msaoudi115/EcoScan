@@ -39,7 +39,8 @@ import {
   Calculator,
   UserPlus,
   Lock,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -1251,7 +1252,16 @@ const App: React.FC = () => {
         border: 'border-[#2E5936]',
         desc: `Baseline uses ${originalState?.trainingRegion}. Migrate training to France for nuclear baseload.`,
         isOptimized: currentState.trainingRegion === 'France (Nuclear)',
-        apply: () => setCurrentState(s => ({ ...s, trainingRegion: 'France (Nuclear)' }))
+        isOriginal: currentState.trainingRegion === originalState?.trainingRegion,
+        toggle: () => {
+            if (currentState.trainingRegion === 'France (Nuclear)' && originalState?.trainingRegion !== 'France (Nuclear)') {
+                // Revert
+                setCurrentState(s => ({ ...s, trainingRegion: originalState?.trainingRegion || 'China (Coal)' }))
+            } else {
+                // Apply
+                setCurrentState(s => ({ ...s, trainingRegion: 'France (Nuclear)' }))
+            }
+        }
       },
       {
         id: 'hardware',
@@ -1262,7 +1272,14 @@ const App: React.FC = () => {
         border: 'border-[#B08D55]',
         desc: `Switch to NVIDIA T4 accelerators to reduce embodied carbon and wattage.`,
         isOptimized: currentState.hardware === 'NVIDIA T4',
-        apply: () => setCurrentState(s => ({ ...s, hardware: 'NVIDIA T4' }))
+        isOriginal: currentState.hardware === originalState?.hardware,
+        toggle: () => {
+            if (currentState.hardware === 'NVIDIA T4' && originalState?.hardware !== 'NVIDIA T4') {
+                setCurrentState(s => ({ ...s, hardware: originalState?.hardware || 'NVIDIA A100' }))
+            } else {
+                setCurrentState(s => ({ ...s, hardware: 'NVIDIA T4' }))
+            }
+        }
       },
       {
         id: 'inference_region',
@@ -1273,7 +1290,14 @@ const App: React.FC = () => {
         border: 'border-[#2E5936]',
         desc: `Baseline uses ${originalState?.inferenceRegion}. Relocate inference API to low-carbon zones.`,
         isOptimized: currentState.inferenceRegion === 'France (Nuclear)',
-        apply: () => setCurrentState(s => ({ ...s, inferenceRegion: 'France (Nuclear)' }))
+        isOriginal: currentState.inferenceRegion === originalState?.inferenceRegion,
+        toggle: () => {
+            if (currentState.inferenceRegion === 'France (Nuclear)' && originalState?.inferenceRegion !== 'France (Nuclear)') {
+                setCurrentState(s => ({ ...s, inferenceRegion: originalState?.inferenceRegion || 'China (Coal)' }))
+            } else {
+                setCurrentState(s => ({ ...s, inferenceRegion: 'France (Nuclear)' }))
+            }
+        }
       },
       {
         id: 'quantization',
@@ -1284,7 +1308,16 @@ const App: React.FC = () => {
         border: 'border-[#B08D55]',
         desc: `Compress model weights to reduce latency from ${originalState?.avgLatency}s to ${(originalState?.avgLatency || 0) * 0.5}s.`,
         isOptimized: currentState.avgLatency <= (originalState?.avgLatency || 0) * 0.51, 
-        apply: () => setCurrentState(s => ({ ...s, avgLatency: (originalState?.avgLatency || 0) * 0.5 }))
+        isOriginal: currentState.avgLatency === originalState?.avgLatency,
+        toggle: () => {
+             // Logic: Check if current is approx half of original (Optimized)
+             const isOpt = currentState.avgLatency <= (originalState?.avgLatency || 0) * 0.51;
+             if (isOpt && originalState?.avgLatency) {
+                 setCurrentState(s => ({ ...s, avgLatency: originalState.avgLatency }))
+             } else {
+                 setCurrentState(s => ({ ...s, avgLatency: (originalState?.avgLatency || 0) * 0.5 }))
+             }
+        }
       },
       {
         id: 'pruning',
@@ -1295,7 +1328,15 @@ const App: React.FC = () => {
         border: 'border-[#2E5936]',
         desc: `Algorithmic optimization to reduce training time from ${originalState?.trainingHours}h to ${Math.round((originalState?.trainingHours || 0) * 0.7)}h.`,
         isOptimized: currentState.trainingHours <= (originalState?.trainingHours || 0) * 0.71,
-        apply: () => setCurrentState(s => ({ ...s, trainingHours: Math.round((originalState?.trainingHours || 0) * 0.7) }))
+        isOriginal: currentState.trainingHours === originalState?.trainingHours,
+        toggle: () => {
+            const isOpt = currentState.trainingHours <= (originalState?.trainingHours || 0) * 0.71;
+            if (isOpt && originalState?.trainingHours) {
+                setCurrentState(s => ({ ...s, trainingHours: originalState.trainingHours }))
+            } else {
+                setCurrentState(s => ({ ...s, trainingHours: Math.round((originalState?.trainingHours || 0) * 0.7) }))
+            }
+        }
       },
       {
         id: 'rightsizing',
@@ -1306,7 +1347,15 @@ const App: React.FC = () => {
         border: 'border-[#B08D55]',
         desc: `Downscale from ${originalState?.numGpus} GPUs to ${Math.max(1, Math.round((originalState?.numGpus || 0) * 0.75))} to minimize idle waste.`,
         isOptimized: currentState.numGpus <= Math.max(1, Math.round((originalState?.numGpus || 0) * 0.76)),
-        apply: () => setCurrentState(s => ({ ...s, numGpus: Math.max(1, Math.round((originalState?.numGpus || 0) * 0.75)) }))
+        isOriginal: currentState.numGpus === originalState?.numGpus,
+        toggle: () => {
+            const isOpt = currentState.numGpus <= Math.max(1, Math.round((originalState?.numGpus || 0) * 0.76));
+            if (isOpt && originalState?.numGpus) {
+                setCurrentState(s => ({ ...s, numGpus: originalState.numGpus }))
+            } else {
+                setCurrentState(s => ({ ...s, numGpus: Math.max(1, Math.round((originalState?.numGpus || 0) * 0.75)) }))
+            }
+        }
       }
     ];
 
@@ -1323,27 +1372,46 @@ const App: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
           <div className="lg:col-span-2 grid grid-cols-1 gap-8">
             <h4 className={`font-serif text-4xl tracking-tight mb-4 ${theme.text}`}>Optimization Directives</h4>
-            {strategies.map((strategy) => (
-              <div key={strategy.id} className={`p-10 space-y-8 border ${strategy.isOptimized ? 'border-gray-100 opacity-60' : `border-${strategy.color.split('-')[1]}/10 hover:${strategy.border}`} group transition-all duration-500 shadow-sm hover:shadow-2xl ${theme.card}`}>
-                <div className="flex justify-between items-start">
-                  <div className={`w-12 h-12 rounded-full ${strategy.bg} ${strategy.color} flex items-center justify-center`}>
-                    <strategy.icon className="w-6 h-6" />
-                  </div>
-                  {strategy.isOptimized && <CheckCircle2 className={`w-6 h-6 ${strategy.color}`} />}
+            {strategies.map((strategy) => {
+               // Determine Button State
+               // If Optimized AND NOT Original -> It was applied by user -> Show UNDO
+               // If Optimized AND Original -> It was already good -> Show BASELINE OPTIMAL (Disabled)
+               // If NOT Optimized -> Show APPLY
+               const canUndo = strategy.isOptimized && !strategy.isOriginal;
+               const isBaselineOptimal = strategy.isOptimized && strategy.isOriginal;
+               
+               return (
+                <div key={strategy.id} className={`p-10 space-y-8 border ${isBaselineOptimal ? 'border-gray-100 opacity-60' : `border-${strategy.color.split('-')[1]}/10 hover:${strategy.border}`} group transition-all duration-500 shadow-sm hover:shadow-2xl ${theme.card}`}>
+                    <div className="flex justify-between items-start">
+                    <div className={`w-12 h-12 rounded-full ${strategy.bg} ${strategy.color} flex items-center justify-center`}>
+                        <strategy.icon className="w-6 h-6" />
+                    </div>
+                    {strategy.isOptimized && <CheckCircle2 className={`w-6 h-6 ${strategy.color}`} />}
+                    </div>
+                    <h5 className="font-serif text-2xl tracking-wide uppercase">{strategy.title}</h5>
+                    <p className="text-sm text-gray-500 font-light leading-relaxed">
+                    {strategy.desc}
+                    </p>
+                    
+                    {isBaselineOptimal ? (
+                        <div className={`text-[10px] uppercase tracking-[0.4em] font-bold text-gray-400 flex items-center gap-4`}>
+                           BASELINE OPTIMAL <Check className="w-3 h-3" />
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={strategy.toggle}
+                            className={`text-[10px] uppercase tracking-[0.4em] font-bold ${canUndo ? 'text-gray-400 hover:text-[#D32F2F]' : strategy.color} flex items-center gap-4 hover:gap-6 transition-all`}
+                        >
+                            {canUndo ? (
+                                <>UNDO FIX <RotateCcw className="w-3 h-3" /></>
+                            ) : (
+                                <>APPLY FIX <ArrowRight className="w-3 h-3" /></>
+                            )}
+                        </button>
+                    )}
                 </div>
-                <h5 className="font-serif text-2xl tracking-wide uppercase">{strategy.title}</h5>
-                <p className="text-sm text-gray-500 font-light leading-relaxed">
-                  {strategy.desc}
-                </p>
-                <button 
-                  onClick={strategy.apply}
-                  className={`text-[10px] uppercase tracking-[0.4em] font-bold ${strategy.color} flex items-center gap-4 hover:gap-6 transition-all disabled:opacity-30`}
-                  disabled={strategy.isOptimized}
-                >
-                  {strategy.isOptimized ? 'OPTIMIZED' : 'APPLY FIX'} <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="lg:col-span-1 sticky top-8">

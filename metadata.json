@@ -1,0 +1,7 @@
+{
+  "name": "EcoScan by LVMH",
+  "description": "High-fidelity sustainability assessment tool for AI and tech infrastructure within LVMH Maisons.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
